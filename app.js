@@ -8,7 +8,7 @@ const cors = require('cors');
 
 
 
-mongoose.connect('mongodb+srv://markjules13:markjules123@node-rest-bcc.t39id.mongodb.net/?retryWrites=true&w=majority&appName=node-rest-bcc');
+mongoose.connect('mongodb+srv://databaseAdmin:adminPassword@dcslms.mm1aw.mongodb.net/');
 mongoose.Promise = global.Promise;
 
 app.use(morgan('dev'));
