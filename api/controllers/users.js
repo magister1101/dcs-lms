@@ -187,3 +187,37 @@ exports.myUser = async (req, res, next) => {
     }
 
 };
+
+exports.updateUser = async (req, res, next) => {
+    try {
+        const userId = req.params.userId;
+        const updateFields = req.body;
+
+        if (updateFields.password) {
+            const bcrypt = require('bcrypt');
+            const saltRounds = 10;
+
+            bcrypt.hash(updateFields.password, saltRounds, async (err, hash) => {
+                if (err) {
+                    return res.status(500).json({
+                        message: "Error in updating user password",
+                        error: err
+                    })
+                }
+                updateFields.password = hash;
+                performUpdate(userId, updateFields, res);
+            })
+        }
+        else {
+            performUpdate(userId, updateFields, res);
+        }
+
+    }
+    catch (error) {
+        console.error('Error updating user:', error);
+        return res.status(500).json({
+            message: "Error in updating user",
+            error: error.message || error,
+        });
+    }
+}

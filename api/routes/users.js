@@ -14,5 +14,7 @@ router.post('/create', UsersController.createUser);
 
 router.post('/login', UsersController.loginUser);
 
+router.post('/update/:userId', checkAuth, UsersController.updateUser)
+
 
 module.exports = router;
