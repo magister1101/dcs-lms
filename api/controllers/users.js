@@ -79,6 +79,24 @@ exports.getUser = async (req, res) => {
     }
 };
 
+exports.myUser = async (req, res, next) => {
+    try {
+        User.findOne({ _id: req.userData.userId })
+            .exec()
+            .then(user => {
+                return res.status(200).json(user);
+            })
+    }
+    catch (error) {
+        console.error('Error retrieving user:', error);
+        return res.status(500).json({
+            message: "Error in retrieving user",
+            error: error.message || error,
+        });
+    }
+
+};
+
 exports.createUser = async (req, res, next) => {
     try {
         const existingUser = await User.find({
@@ -119,6 +137,20 @@ exports.createUser = async (req, res, next) => {
             message: "Error in creating user",
             error: error.message || error,
         });
+    }
+};
+
+exports.tokenValidation = (req, res, next) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader) {
+            return res.status(200).json({ isValid: false });
+        }
+        const token = authHeader.split(' ')[1];
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        return res.json({ isValid: true });
+    } catch (error) {
+        return res.status(500).json({ isValid: false });
     }
 };
 
@@ -167,24 +199,6 @@ exports.loginUser = async (req, res, next) => {
             error: error.message || error,
         });
     }
-};
-
-exports.myUser = async (req, res, next) => {
-    try {
-        User.findOne({ _id: req.userData.userId })
-            .exec()
-            .then(user => {
-                return res.status(200).json(user);
-            })
-    }
-    catch (error) {
-        console.error('Error retrieving user:', error);
-        return res.status(500).json({
-            message: "Error in retrieving user",
-            error: error.message || error,
-        });
-    }
-
 };
 
 exports.updateUser = async (req, res, next) => {

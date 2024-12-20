@@ -10,6 +10,8 @@ router.get('/', UsersController.getUser);
 
 router.get('/myUser', checkAuth, UsersController.myUser)
 
+router.get('/tokenValidation', UsersController.tokenValidation)
+
 router.post('/create', UsersController.createUser);
 
 router.post('/login', UsersController.loginUser);
