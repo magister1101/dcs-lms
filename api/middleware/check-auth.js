@@ -11,7 +11,6 @@ module.exports = (req, res, next) => {
         const token = authHeader.split(' ')[1];
         // console.log("Received token:", token); // Debug log
 
-        console.log("Received authHeader:", token); // Debug log
         const decoded = jwt.verify(token, "secretKey");
         // console.log("Decoded token:", decoded); // Debug log
 

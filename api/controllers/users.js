@@ -3,7 +3,6 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
 const User = require('../models/user');
-const user = require('../models/user');
 
 const performUpdate = (userId, updateFields, res) => {
     User.findByIdAndUpdate(userId, updateFields, { new: true })
@@ -220,4 +219,4 @@ exports.updateUser = async (req, res, next) => {
             error: error.message || error,
         });
     }
-}
+};
