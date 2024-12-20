@@ -17,7 +17,16 @@ app.use('/uploads', express.static('uploads')); // make the uploads folder acces
 app.use(bodyParser.json()); // For parsing application/json
 app.use(bodyParser.urlencoded({ extended: true })); // For parsing application/x-www-form-urlencoded
 
-app.use(cors());
+const corsOptions = {
+    origin: '*', // Allow this origin
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Allowed methods
+    allowedHeaders: ['Content-Type', 'Authorization'], // Allowed headers
+};
+
+// Use Middleware
+app.use(cors(corsOptions)); // Apply CORS settings
+app.options('*', cors(corsOptions)); // Explicitly handle OPTIONS requests
+
 app.use((req, res, next) => {
     res.header("Access-Control-Allow-Origin", "*");
     res.header(
