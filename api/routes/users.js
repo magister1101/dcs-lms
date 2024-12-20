@@ -8,7 +8,7 @@ const UsersController = require('../controllers/users');
 
 router.get('/', UsersController.getUser);
 
-router.get('/myUser', checkAuth, UsersController.myUser)
+router.get('/myProfile', checkAuth, UsersController.myUser)
 
 router.get('/tokenValidation', UsersController.tokenValidation)
 
