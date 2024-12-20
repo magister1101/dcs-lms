@@ -147,7 +147,7 @@ exports.tokenValidation = (req, res, next) => {
             return res.status(200).json({ isValid: false });
         }
         const token = authHeader.split(' ')[1];
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const decoded = jwt.verify(token, "secretKey");
         return res.json({ isValid: true });
     } catch (error) {
         return res.status(500).json({ isValid: false });
