@@ -5,6 +5,7 @@ const courseSchema = mongoose.Schema({
     instructor_id: { type: String, required: true },
     students: [{ type: String }],
     name: { type: String, required: true },
+    section: { type: String, required: true },
     description: { type: String, required: true },
     image: { type: String, required: true },
     isArchived: { type: Boolean, default: false },

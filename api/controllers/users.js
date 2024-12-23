@@ -4,8 +4,8 @@ const jwt = require('jsonwebtoken');
 
 const User = require('../models/user');
 
-const performUpdate = (userId, updateFields, res) => {
-    User.findByIdAndUpdate(userId, updateFields, { new: true })
+const performUpdate = (id, updateFields, res) => {
+    User.findByIdAndUpdate(id, updateFields, { new: true })
         .then((updatedUser) => {
             if (!updatedUser) {
                 return res.status(404).json({ message: "User not found" });

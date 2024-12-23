@@ -7,6 +7,7 @@ const cors = require('cors');
 
 //routes link
 const userRoutes = require('./api/routes/users');
+const courseRoutes = require('./api/routes/courses');
 
 
 mongoose.connect('mongodb+srv://databaseAdmin:adminPassword@dcslms.mm1aw.mongodb.net/');
@@ -41,9 +42,9 @@ app.use((req, res, next) => {
 });
 
 
-
 // routes
 app.use('/users', userRoutes);
+app.use('/courses', courseRoutes);
 
 
 app.use((req, res, next) => {
