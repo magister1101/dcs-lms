@@ -8,7 +8,7 @@ const CoursesController = require('../controllers/course');
 
 router.get('/', CoursesController.getCourse);
 
-router.post('/', checkAuth, CoursesController.createCourse);
+router.post('/create', checkAuth, CoursesController.createCourse);
 
 router.post('/update/:courseId', CoursesController.updateCourse)
 
