@@ -83,6 +83,7 @@ exports.getCourse = async (req, res) => {
 
 exports.createCourse = async (req, res) => {
     try {
+        console.log(req.body);
         const courseId = new mongoose.Types.ObjectId();
         const instructor_id = req.userData.userId;
 
@@ -94,7 +95,7 @@ exports.createCourse = async (req, res) => {
             section: req.body.section,
             description: req.body.description,
             image: req.body.image,
-            isArchived: req.body.isArchived,
+            isArchived: false,
         })
 
         const saveCourse = await course.save();
