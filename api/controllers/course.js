@@ -43,7 +43,6 @@ exports.getCourse = async (req, res) => {
                 { description: { $regex: escapedQuery, $options: 'i' } },
                 { instructor_id: { $regex: escapedQuery, $options: 'i' } },
                 { students: { $regex: escapedQuery, $options: 'i' } },
-                { createdAt: { $regex: escapedQuery, $options: 'i' } },
 
             );
 
@@ -55,7 +54,6 @@ exports.getCourse = async (req, res) => {
             queryConditions.push({
                 $or: [
                     { instructor_id: { $regex: escapedFilter, $options: 'i' } },
-                    { section: { $regex: escapedFilter, $options: 'i' } },
                     { section: { $regex: escapedFilter, $options: 'i' } },
                 ],
             });
