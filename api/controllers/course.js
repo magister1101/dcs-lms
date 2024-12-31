@@ -210,7 +210,7 @@ exports.createCourse = async (req, res) => {
             name: req.body.name,
             section: req.body.section,
             description: req.body.description,
-            image: req.body.image,
+            file: req.body.file,
             isArchived: false,
         })
 

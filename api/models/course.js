@@ -7,7 +7,7 @@ const courseSchema = mongoose.Schema({
     name: { type: String, required: true },
     section: { type: String, required: true },
     description: { type: String, required: true },
-    image: { type: String, required: true },
+    file: { type: String, required: true },
     isArchived: { type: Boolean, default: false },
     createdAt: { type: Date, default: Date.now },
 });
