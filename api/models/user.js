@@ -8,7 +8,7 @@ const userSchema = mongoose.Schema({
     firstName: { type: String, required: true },
     lastName: { type: String, required: true },
     middleName: { type: String },
-    image: { type: String },
+    file: { type: String },
     role: { type: String, required: true, default: "student" }, //student, instructor, admin
     isArchived: { type: Boolean, default: false },
     createdAt: { type: Date, default: Date.now },

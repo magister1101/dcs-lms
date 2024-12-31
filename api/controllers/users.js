@@ -99,6 +99,7 @@ exports.myUser = async (req, res, next) => {
 
 exports.createUser = async (req, res, next) => {
     try {
+        console.log("request body: ", req.body);
         const existingUser = await User.find({
             $or: [{ username: req.body.username }, { email: req.body.email }]
         });
@@ -118,7 +119,7 @@ exports.createUser = async (req, res, next) => {
             firstName: req.body.firstName,
             lastName: req.body.lastName,
             middleName: req.body.middleName,
-            image: req.body.image,
+            file: req.body.file,
             role: req.body.role,
             isArchived: req.body.isArchived,
         })
