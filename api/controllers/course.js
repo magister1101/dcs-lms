@@ -82,7 +82,7 @@ exports.getComment = async (req, res) => {
 
 exports.getMaterial = async (req, res) => {
     try {
-        const { isArchived, query, filter } = req.query;
+        const { isArchived, query, filter, courseId } = req.query;
 
         const escapeRegex = (value) => {
             return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -114,6 +114,14 @@ exports.getMaterial = async (req, res) => {
                 $or: [
                     { coursesId: { $regex: escapedFilter, $options: 'i' } },
                     { type: { $regex: escapedFilter, $options: 'i' } },
+                ],
+            });
+        }
+        if (courseId) {
+            const escapedcourseId = escapeRegex(courseId);
+            queryConditions.push({
+                $or: [
+                    { coursesId: { $regex: escapedcourseId, $options: 'i' } },
                 ],
             });
         }
