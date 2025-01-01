@@ -234,10 +234,11 @@ exports.createCourse = async (req, res) => {
 exports.createMaterial = async (req, res) => {
     try {
         const courseId = req.params.courseId
+        console.log(courseId)
 
         const material = new Material({
             _id: new mongoose.Types.ObjectId(),
-            courseId: courseId,
+            coursesId: courseId,
             name: req.body.name,
             description: req.body.description,
             file: req.body.file,
