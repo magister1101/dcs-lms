@@ -20,6 +20,8 @@ router.post('/update/:courseId', CoursesController.updateCourse);
 
 router.post('/comment/:materialId', checkAuth, CoursesController.createComment);
 
+router.post('/material/update/:materialId', CoursesController.updateCourse);
+
 router.post('/material/:courseId', CoursesController.createMaterial);
 
 module.exports = router;

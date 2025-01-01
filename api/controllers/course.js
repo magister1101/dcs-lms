@@ -22,6 +22,23 @@ const performUpdate = (id, updateFields, res) => {
         })
 };
 
+const performUpdateMaterial = (id, updateFields, res) => {
+    Material.findByIdAndUpdate(id, updateFields, { new: true })
+        .then((updatedMaterial) => {
+            if (!updatedMaterial) {
+                return res.status(404).json({ message: "Material not found" });
+            }
+            return res.status(200).json(updatedMaterial);
+
+        })
+        .catch((err) => {
+            return res.status(500).json({
+                message: "Error in updating Material",
+                error: err
+            });
+        })
+};
+
 exports.getComment = async (req, res) => {
     try {
         const { isArchived, query, filter } = req.query;
@@ -313,6 +330,22 @@ exports.updateCourse = async (req, res) => {
         console.error('Error updating course:', error);
         return res.status(500).json({
             message: "Error in updating course",
+            error: error.message || error,
+        });
+    }
+};
+
+exports.updateMaterial = async (req, res) => {
+    try {
+        const materialId = req.params.materialId;
+        const updateFields = req.body;
+
+        performUpdateMaterial(materialId, updateFields, res);
+    }
+    catch (error) {
+        console.error('Error updating material:', error);
+        return res.status(500).json({
+            message: "Error in updating material",
             error: error.message || error,
         });
     }
