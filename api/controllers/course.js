@@ -102,7 +102,7 @@ exports.getMaterial = async (req, res) => {
                 { coursesId: { $regex: escapedQuery, $options: 'i' } },
                 { name: { $regex: escapedQuery, $options: 'i' } },
                 { description: { $regex: escapedQuery, $options: 'i' } },
-                { type: { $regex: escapedFilter, $options: 'i' } },
+                { type: { $regex: escapedQuery, $options: 'i' } },
             );
 
             queryConditions.push({ $or: orConditions });
