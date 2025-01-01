@@ -8,6 +8,7 @@ const commentSchema = mongoose.Schema({
     description: { type: String },
     file: { type: String },
     type: { type: String, required: true },
+    dueDate: { type: Date },
     isArchived: { type: Boolean, default: false },
     createdAt: { type: Date, default: Date.now },
 });
