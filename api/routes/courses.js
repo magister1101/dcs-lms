@@ -6,6 +6,8 @@ const CoursesController = require('../controllers/course');
 
 //routes
 
+router.get('/test', CoursesController.test);
+
 router.get('/getComments', CoursesController.getComment)
 
 router.get('/getMaterial', CoursesController.getMaterial)

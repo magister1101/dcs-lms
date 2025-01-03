@@ -5,6 +5,25 @@ const Comment = require('../models/comment');
 const Material = require('../models/material');
 const Submission = require('../models/submission');
 const Test = require('../models/test');
+const Notification = require('../models/notification');
+const User = require('../models/user');
+
+const notify = async (instructorId, action, courseId, res) => {
+    const instructor = await User.findOne({ _id: instructorId }).exec()
+    const instructorName = instructor.firstName + " " + instructor.lastName;
+
+    const course = await Course.findOne({ _id: courseId }).exec();
+    const courseName = course.name;
+
+    const notification = new Notification({
+        _id: new mongoose.Types.ObjectId(),
+        courseId: courseId,
+        message: instructorName + " " + action + " " + courseName,
+    });
+
+    notification.save();
+    return;
+};
 
 const performUpdate = (id, updateFields, res) => {
     Course.findByIdAndUpdate(id, updateFields, { new: true })
@@ -304,7 +323,7 @@ exports.createCourse = async (req, res) => {
         })
 
         const saveCourse = await course.save();
-
+        notify(instructorId, "Created", courseId, res)
         return res.status(201).json({
             message: "Course created successfully",
             course: saveCourse
@@ -447,18 +466,15 @@ exports.updateMaterial = async (req, res) => {
 };
 
 exports.test = async (req, res) => {
+
     try {
-        const file = req.body.file;
-        console.log(file);
-        const test = new Test({
-            _id: new mongoose.Types.ObjectId(),
-            file: file,
-        })
-        const saveTest = await test.save();
-        return res.status(201).json({
-            message: "Test created successfully",
-            test: saveTest
-        });
+        const id = "67759648383c678f88df5104";
+        const courseId = "6774fa9eecd830dac321e789";
+        const action = "added";
+
+        notify(id, action, courseId, res)
+
+
     } catch (error) {
         console.error('Error in test:', error);
         return res.status(500).json({
