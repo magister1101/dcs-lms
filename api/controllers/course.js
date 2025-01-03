@@ -321,6 +321,7 @@ exports.createComment = async (req, res) => {
 
 exports.updateCourse = async (req, res) => {
     try {
+
         const courseId = req.params.courseId;
         const updateFields = req.body;
 

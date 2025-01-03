@@ -16,7 +16,7 @@ router.post('/create', checkAuth, CoursesController.createCourse);
 
 router.post('/test', CoursesController.test);
 
-router.post('/material/update/:materialId', CoursesController.updateCourse);
+router.post('/material/update/:materialId', CoursesController.updateMaterial);
 
 router.post('/update/:courseId', CoursesController.updateCourse);
 
