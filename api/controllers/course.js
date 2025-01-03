@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const Course = require('../models/course');
 const Comment = require('../models/comment');
 const Material = require('../models/material');
+const Submission = require('../models/submission');
 const Test = require('../models/test');
 
 const performUpdate = (id, updateFields, res) => {
@@ -153,6 +154,69 @@ exports.getMaterial = async (req, res) => {
         }
         const materials = await Material.find(searchCriteria);
         return res.status(200).json(materials);
+
+    } catch (error) {
+        console.error('Error retrieving materials:', error);
+        return res.status(500).json({
+            message: "Error in retrieving materials",
+            error: error.message || error,
+        });
+    }
+};
+
+exports.getSubmission = async (req, res) => {
+    try {
+        const { isArchived, query, studentId, materialId } = req.query;
+
+        const escapeRegex = (value) => {
+            return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        };
+
+        let searchCriteria = {};
+        const queryConditions = [];
+
+        if (query) {
+            const escapedQuery = escapeRegex(query);
+            const orConditions = [];
+
+            if (mongoose.Types.ObjectId.isValid(query)) {
+                orConditions.push({ _id: query });
+            }
+            orConditions.push(
+                { description: { $regex: escapedQuery, $options: 'i' } },
+                { grade: { $regex: escapedQuery, $options: 'i' } },
+            );
+
+            queryConditions.push({ $or: orConditions });
+        }
+
+        if (studentId) {
+            const escapedStudentId = escapeRegex(studentId);
+            queryConditions.push({
+                $or: [
+                    { studentId: { $regex: escapedStudentId, $options: 'i' } },
+                ],
+            });
+        }
+        if (materialId) {
+            const escapedMaterialId = escapeRegex(materialId);
+            queryConditions.push({
+                $or: [
+                    { materialId: { $regex: escapedMaterialId, $options: 'i' } },
+                ],
+            });
+        }
+
+        if (isArchived) {
+            const isArchivedBool = isArchived === 'true'; // Convert to boolean
+            queryConditions.push({ isArchived: isArchivedBool });
+        }
+
+        if (queryConditions.length > 0) {
+            searchCriteria = { $and: queryConditions };
+        }
+        const submission = await Submission.find(searchCriteria);
+        return res.status(200).json(submission);
 
     } catch (error) {
         console.error('Error retrieving materials:', error);
@@ -314,6 +378,36 @@ exports.createComment = async (req, res) => {
         console.error('Error commenting:', error);
         return res.status(500).json({
             message: "Error in commenting",
+            error: error.message || error,
+        });
+    }
+};
+
+exports.createSubmission = async (req, res) => {
+    try {
+        const materialId = req.params.materialId;
+        const studentId = req.userData.userId;
+        const { description, file } = req.body;
+
+        const submission = new Submission({
+            _id: new mongoose.Types.ObjectId(),
+            materialId: materialId,
+            studentId: studentId,
+            description: description,
+            file: file,
+        });
+
+        const saveSubmission = await submission.save();
+        return res.status(201).json({
+            message: "Submission created successfully",
+            submission: saveSubmission
+        });
+
+    }
+    catch (error) {
+        console.error('Error in creating submission:', error);
+        return res.status(500).json({
+            message: "Error in creating submission",
             error: error.message || error,
         });
     }
