@@ -61,7 +61,7 @@ const performUpdateMaterial = (id, updateFields, res) => {
 
 exports.getComment = async (req, res) => {
     try {
-        const { isArchived, query, filter } = req.query;
+        const { isArchived, query, filter, courseId } = req.query;
 
         const escapeRegex = (value) => {
             return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -85,6 +85,15 @@ exports.getComment = async (req, res) => {
             );
 
             queryConditions.push({ $or: orConditions });
+        }
+
+        if (courseId) {
+            const escapedcourseId = escapeRegex(courseId);
+            queryConditions.push({
+                $or: [
+                    { coursesId: { $regex: escapedcourseId, $options: 'i' } },
+                ],
+            });
         }
 
         if (filter) {
@@ -117,8 +126,63 @@ exports.getComment = async (req, res) => {
     }
 };
 
+exports.getNotification = async (req, res) => {
+    try {
+        const { isArchived, courseId, query } = req.query;
+
+        const escapeRegex = (value) => {
+            return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        };
+
+        let searchCriteria = {};
+        const queryConditions = [];
+
+        if (query) {
+            const escapedQuery = escapeRegex(query);
+            const orConditions = [];
+
+            if (mongoose.Types.ObjectId.isValid(query)) {
+                orConditions.push({ _id: query });
+            }
+            orConditions.push(
+                { message: { $regex: escapedQuery, $options: 'i' } },
+            );
+
+            queryConditions.push({ $or: orConditions });
+        }
+
+        if (courseId) {
+            const escapedFilter = escapeRegex(filter);
+            queryConditions.push({
+                $or: [
+                    { courseId: { $regex: escapedFilter, $options: 'i' } },
+                ],
+            });
+        }
+
+        if (isArchived) {
+            const isArchivedBool = isArchived === 'true'; // Convert to boolean
+            queryConditions.push({ isArchived: isArchivedBool });
+        }
+
+        if (queryConditions.length > 0) {
+            searchCriteria = { $and: queryConditions };
+        }
+        const notification = await Notification.find(searchCriteria);
+        return res.status(200).json(notification);
+
+    } catch (error) {
+        console.error('Error retrieving notification:', error);
+        return res.status(500).json({
+            message: "Error in retrieving notification",
+            error: error.message || error,
+        });
+    }
+};
+
 exports.getMaterial = async (req, res) => {
     try {
+        console.log(req.query)
         const { isArchived, query, filter, courseId } = req.query;
 
         const escapeRegex = (value) => {
@@ -172,6 +236,7 @@ exports.getMaterial = async (req, res) => {
             searchCriteria = { $and: queryConditions };
         }
         const materials = await Material.find(searchCriteria);
+
         return res.status(200).json(materials);
 
     } catch (error) {
@@ -351,6 +416,8 @@ exports.createMaterial = async (req, res) => {
             description: req.body.description,
             file: req.body.file,
             type: req.body.type,
+            dueDate: req.body.dueDate,
+            grade: req.body.grade,
             isArchived: false,
         })
 
@@ -378,10 +445,15 @@ exports.createComment = async (req, res) => {
         const usersId = req.userData.userId;
         const message = req.body.message;
 
+        const user = await User.findOne({ _id: usersId }).exec()
+        const userName = user.firstName + " " + user.lastName;
+        const userImage = user.file;
+
         const comment = new Comment({
             _id: commentId,
             materialId: materialId,
-            userId: usersId,
+            user: userName,
+            image: userImage,
             message: message,
         })
 

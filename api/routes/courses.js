@@ -8,7 +8,9 @@ const CoursesController = require('../controllers/course');
 
 router.get('/test', CoursesController.test);
 
-router.get('/getComments', CoursesController.getComment)
+router.get('/getComment', CoursesController.getComment)
+
+router.get('/getNotification', CoursesController.getNotification)
 
 router.get('/getMaterial', CoursesController.getMaterial)
 
@@ -26,7 +28,7 @@ router.post('/update/:courseId', CoursesController.updateCourse);
 
 router.post('/comment/:materialId', checkAuth, CoursesController.createComment);
 
-router.post('/material/:courseId', CoursesController.createMaterial);
+router.post('/material/:courseId', checkAuth, CoursesController.createMaterial);
 
 router.post('/submission/:materialId', checkAuth, CoursesController.createSubmission);
 
