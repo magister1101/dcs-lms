@@ -3,6 +3,8 @@ const mongoose = require('mongoose');
 const courseSchema = mongoose.Schema({
     _id: mongoose.Schema.Types.ObjectId,
     instructorId: { type: String, required: true },
+    instructorName: { type: String, required: true },
+    instructorImage: { type: String, required: true },
     students: [{ type: String }],
     name: { type: String, required: true },
     section: { type: String, required: true },

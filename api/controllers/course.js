@@ -371,7 +371,7 @@ exports.getSubmission = async (req, res) => {
 
 exports.getCourse = async (req, res) => {
     try {
-        const { isArchived, query, filter } = req.query;
+        const { isArchived, query, filter, studentId, instructorId } = req.query;
 
         const escapeRegex = (value) => {
             return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -409,6 +409,25 @@ exports.getCourse = async (req, res) => {
             });
         }
 
+
+        if (studentId) {
+            const escapedStudentId = escapeRegex(studentId);
+            queryConditions.push({
+                $or: [
+                    { students: { $regex: escapedStudentId, $options: 'i' } },
+                ],
+            });
+        }
+
+        if (instructorId) {
+            const escapedInstructorId = escapeRegex(instructorId);
+            queryConditions.push({
+                $or: [
+                    { instructorId: { $regex: escapedInstructorId, $options: 'i' } },
+                ],
+            });
+        }
+
         if (isArchived) {
             const isArchivedBool = isArchived === 'true'; // Convert to boolean
             queryConditions.push({ isArchived: isArchivedBool });
@@ -418,6 +437,7 @@ exports.getCourse = async (req, res) => {
             searchCriteria = { $and: queryConditions };
         }
         const courses = await Course.find(searchCriteria);
+
         return res.status(200).json(courses);
 
     } catch (error) {
@@ -433,10 +453,15 @@ exports.createCourse = async (req, res) => {
     try {
         const courseId = new mongoose.Types.ObjectId();
         const instructorId = req.userData.userId;
+        const instructor = await User.findOne({ _id: instructorId }).exec()
+        const instructorName = instructor.firstName + " " + instructor.lastName;
+        const instructorImage = instructor.file;
 
         const course = new Course({
             _id: courseId,
             instructorId: instructorId,
+            instructorName: instructorName,
+            instructorImage: instructorImage,
             students: req.body.students,
             name: req.body.name,
             section: req.body.section,
@@ -467,9 +492,14 @@ exports.createMaterial = async (req, res) => {
         const courseId = req.params.courseId
         const instructorId = req.userData.userId;
 
+        const instructor = await User.findOne({ _id: instructorId }).exec()
+        const instructorName = instructor.firstName + " " + instructor.lastName;
+        const instructorImage = instructor.file;
         const material = new Material({
             _id: new mongoose.Types.ObjectId(),
             coursesId: courseId,
+            instructorName: instructorName,
+            instructorImage: instructorImage,
             name: req.body.name,
             description: req.body.description,
             file: req.body.file,

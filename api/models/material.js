@@ -4,6 +4,8 @@ const { type } = require('os');
 const commentSchema = mongoose.Schema({
     _id: mongoose.Schema.Types.ObjectId,
     coursesId: { type: String, required: true },
+    instructorName: { type: String, required: true },
+    instructorImage: { type: String },
     name: { type: String },
     description: { type: String },
     file: { type: String },
