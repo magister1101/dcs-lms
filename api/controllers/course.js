@@ -8,17 +8,16 @@ const Test = require('../models/test');
 const Notification = require('../models/notification');
 const User = require('../models/user');
 
-const notify = async (instructorId, action, courseId, res) => {
+const notify = async (instructorId, action, courseId, name, key, res) => {
     const instructor = await User.findOne({ _id: instructorId }).exec()
     const instructorName = instructor.firstName + " " + instructor.lastName;
-
-    const course = await Course.findOne({ _id: courseId }).exec();
-    const courseName = course.name;
+    const instructorImage = instructor.file;
 
     const notification = new Notification({
         _id: new mongoose.Types.ObjectId(),
         courseId: courseId,
-        message: instructorName + " " + action + " " + courseName,
+        instructorImage: instructorImage,
+        message: instructorName + " " + action + " a " + key + ": " + name,
     });
 
     notification.save();
@@ -57,6 +56,53 @@ const performUpdateMaterial = (id, updateFields, res) => {
                 error: err
             });
         })
+};
+
+exports.joinCourse = async (req, res) => {
+    try {
+        const courseId = req.params.courseId;
+        const studentId = req.userData.userId;
+
+        const course = await Course.findOne({ _id: courseId }).exec();
+        if (!course) {
+            return res.status(404).json({ message: "Course not found" });
+        }
+
+        const student = await User.findOne({ _id: studentId }).exec();
+        if (!student) {
+            return res.status(404).json({ message: "Student not found" });
+        }
+
+        if (student.courses.includes(courseId)) {
+            return res.status(400).json({ message: "Student is already enrolled in this course" });
+        }
+
+        if (course.students.includes(studentId)) {
+            return res.status(400).json({ message: "Student is already added to the course" });
+        }
+
+        student.courses.push(courseId);
+        await student.save();
+
+        course.students.push(studentId);
+        await course.save();
+
+
+        return res.status(200).json({
+            message: "Student successfully joined the course",
+            studentCourses: student.courses,
+            courseStudents: course.students,
+        });
+
+
+    }
+    catch (error) {
+        console.error('Error joining course:', error);
+        return res.status(500).json({
+            message: "Error in joining course",
+            error: error.message || error,
+        });
+    }
 };
 
 exports.getComment = async (req, res) => {
@@ -400,7 +446,7 @@ exports.createCourse = async (req, res) => {
         })
 
         const saveCourse = await course.save();
-        notify(instructorId, "Created", courseId, res)
+        notify(instructorId, "Created", courseId, req.body.name, "course", res)
         return res.status(201).json({
             message: "Course created successfully",
             course: saveCourse
@@ -419,7 +465,7 @@ exports.createCourse = async (req, res) => {
 exports.createMaterial = async (req, res) => {
     try {
         const courseId = req.params.courseId
-        console.log(courseId)
+        const instructorId = req.userData.userId;
 
         const material = new Material({
             _id: new mongoose.Types.ObjectId(),
@@ -434,7 +480,7 @@ exports.createMaterial = async (req, res) => {
         })
 
         const saveMaterial = await material.save();
-
+        notify(instructorId, "Created", courseId, req.body.name, "material", res)
         return res.status(201).json({
             message: "Material created successfully",
             material: saveMaterial
@@ -512,6 +558,24 @@ exports.createSubmission = async (req, res) => {
         return res.status(500).json({
             message: "Error in creating submission",
             error: error.message || error,
+        });
+    }
+};
+
+exports.createQuiz = async (req, res) => {
+    try {
+
+        const coursesId = req.params.courseId;
+        const { name, questions } = req.body;
+        const quiz = new Quiz({ coursesId, name, questions });
+        await quiz.save();
+        res.status(201).json({ message: 'Quiz created successfully!' });
+
+    } catch (err) {
+        console.error('Error in creating quiz:', err);
+        return res.status(500).json({
+            message: "Error in creating quiz",
+            error: err.message || err,
         });
     }
 };

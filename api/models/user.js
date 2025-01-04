@@ -10,6 +10,7 @@ const userSchema = mongoose.Schema({
     middleName: { type: String },
     file: { type: String },
     role: { type: String, required: true, default: "student" }, //student, instructor, admin
+    courses: [{ type: String }],
     isArchived: { type: Boolean, default: false },
     createdAt: { type: Date, default: Date.now },
 });

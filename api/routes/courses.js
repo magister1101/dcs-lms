@@ -16,6 +16,8 @@ router.get('/getMaterial', CoursesController.getMaterial)
 
 router.get('/getSubmission', CoursesController.getSubmission)
 
+router.get('/joinCourse/:courseId', checkAuth, CoursesController.joinCourse);
+
 router.get('/', CoursesController.getCourse);
 
 router.post('/create', checkAuth, CoursesController.createCourse);
