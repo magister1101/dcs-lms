@@ -182,7 +182,6 @@ exports.getNotification = async (req, res) => {
 
 exports.getMaterial = async (req, res) => {
     try {
-        console.log(req.query)
         const { isArchived, query, filter, courseId } = req.query;
 
         const escapeRegex = (value) => {
@@ -237,7 +236,20 @@ exports.getMaterial = async (req, res) => {
         }
         const materials = await Material.find(searchCriteria);
 
-        return res.status(200).json(materials);
+        // Fetch comments for the materials
+        const comments = await Comment.find({
+            materialId: { $in: materials.map((m) => m._id.toString()) },
+        });
+
+        // Attach comments to their respective materials
+        const materialsWithComments = materials.map((material) => {
+            const materialComments = comments.filter(
+                (comment) => comment.materialId === material._id.toString()
+            );
+            return { ...material._doc, comments: materialComments };
+        });
+
+        return res.status(200).json(materialsWithComments);
 
     } catch (error) {
         console.error('Error retrieving materials:', error);
