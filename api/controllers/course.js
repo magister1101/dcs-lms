@@ -30,7 +30,7 @@ const performUpdate = (id, updateFields, res) => {
             if (!updatedCourse) {
                 return res.status(404).json({ message: "Course not found" });
             }
-            return res.status(200).json(updatedCourse);
+            return updatedCourse;
 
         })
         .catch((err) => {
@@ -583,10 +583,15 @@ exports.createQuiz = async (req, res) => {
 exports.updateCourse = async (req, res) => {
     try {
 
+        const instructorId = req.userData.userId;
         const courseId = req.params.courseId;
+        const course = Course.findOne({ _id: courseId }).exec();
         const updateFields = req.body;
 
-        performUpdate(courseId, updateFields, res);
+        const updatedCourse = performUpdate(courseId, updateFields, res);
+        notify(instructorId, "Updated", courseId, course.name, "course", res)
+
+        return res.status(200).json(updatedCourse);
     }
     catch (error) {
         console.error('Error updating course:', error);

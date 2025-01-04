@@ -26,7 +26,7 @@ router.post('/test', CoursesController.test);
 
 router.post('/material/update/:materialId', CoursesController.updateMaterial);
 
-router.post('/update/:courseId', CoursesController.updateCourse);
+router.post('/update/:courseId', checkAuth, CoursesController.updateCourse);
 
 router.post('/comment/:materialId', checkAuth, CoursesController.createComment);
 
