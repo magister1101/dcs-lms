@@ -47,7 +47,7 @@ const performUpdateMaterial = (id, updateFields, res) => {
             if (!updatedMaterial) {
                 return res.status(404).json({ message: "Material not found" });
             }
-            return res.status(200).json(updatedMaterial);
+            return updatedMaterial;
 
         })
         .catch((err) => {
@@ -607,7 +607,8 @@ exports.updateMaterial = async (req, res) => {
         const materialId = req.params.materialId;
         const updateFields = req.body;
 
-        performUpdateMaterial(materialId, updateFields, res);
+        const updatedMaterial = performUpdateMaterial(materialId, updateFields, res);
+        return res.status(200).json(updatedMaterial);
     }
     catch (error) {
         console.error('Error updating material:', error);
