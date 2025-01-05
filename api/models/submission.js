@@ -7,7 +7,7 @@ const submissionSchema = mongoose.Schema({
     studentId: { type: String, required: true },
     description: { type: String },
     file: { type: String },
-    grade: { type: Number, default: 1 }, //if grade is 1, it means it hasn't been graded yet
+    grade: { type: Number, default: 0 }, //if grade is 0, it means it hasn't been graded yet
     isArchived: { type: Boolean, default: false },
     createdAt: { type: Date, default: Date.now },
 });

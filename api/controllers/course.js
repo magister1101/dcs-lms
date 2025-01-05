@@ -447,11 +447,18 @@ exports.getGrade = async (req, res) => {
             quizFilter.isArchived = isArchived === 'true';
         }
 
-        // Fetch students and quizzes
+        // Material filter for assignments
+        let materialFilter = { type: 'assignment' }; // Filter materials with type 'assignment'
+        if (courseId) {
+            materialFilter.coursesId = { $regex: escapeRegex(courseId), $options: 'i' };
+        }
+
+        // Fetch students, quizzes, and assignments
         const students = await User.find(studentFilter);
         const quizzes = await Quiz.find(quizFilter);
+        const materials = await Material.find(materialFilter);
 
-        // Map through students and get their grades
+        // Map through students and get their grades and assignments
         const studentGrades = await Promise.all(
             students.map(async (student) => {
                 // Find grades for the student, filtered by courseId
@@ -459,6 +466,12 @@ exports.getGrade = async (req, res) => {
                     studentId: student._id,
                     quizId: { $in: quizzes.map((quiz) => quiz._id) }, // Only grades for specific quizzes
                 }).populate('quizId');
+
+                // Find submissions for assignments for the student
+                const submissions = await Submission.find({
+                    studentId: student._id,
+                    materialId: { $in: materials.map((material) => material._id) }, // Only submissions for specific assignments
+                }).populate('materialId');
 
                 // Map quizzes with their grades, including courseId
                 const gradesWithQuizStatus = quizzes.map((quiz) => {
@@ -473,6 +486,22 @@ exports.getGrade = async (req, res) => {
                     };
                 });
 
+                // Map materials (assignments) with their submissions
+                const assignmentsWithSubmissionStatus = materials.map((material) => {
+                    const submission = submissions.find(
+                        (s) => s.materialId._id.toString() === material._id.toString()
+                    );
+                    return {
+                        materialId: material._id,
+                        courseId: material.coursesId, // Include courseId for assignments
+                        materialName: material.name,
+                        description: material.description,
+                        file: material.file,
+                        grade: submission ? submission.grade : 'Not graded',
+                        submittedAt: submission ? submission.createdAt : 'Not submitted',
+                    };
+                });
+
                 const studentName = `${student.firstName} ${student.lastName}`;
 
                 return {
@@ -481,6 +510,7 @@ exports.getGrade = async (req, res) => {
                     username: student.username,
                     email: student.email,
                     grades: gradesWithQuizStatus,
+                    assignments: assignmentsWithSubmissionStatus, // Include assignments in the response
                 };
             })
         );
@@ -763,18 +793,33 @@ exports.createSubmission = async (req, res) => {
         const studentId = req.userData.userId;
         const { description, file } = req.body;
 
+        if (!studentId) {
+            return res.status(400).json({ message: 'Student ID is required' });
+        }
+
+        const material = await Material.findById(materialId);
+        if (!material) {
+            return res.status(404).json({ message: 'Material not found' });
+        }
+
+        const existingSubmission = await Submission.findOne({ materialId, studentId });
+        if (existingSubmission) {
+            return res.status(400).json({ message: 'You have already submitted this material.' });
+        }
+
         const submission = new Submission({
             _id: new mongoose.Types.ObjectId(),
-            materialId: materialId,
-            studentId: studentId,
-            description: description,
-            file: file,
+            materialId,
+            studentId,
+            description,
+            file,
         });
 
-        const saveSubmission = await submission.save();
-        return res.status(201).json({
-            message: "Submission created successfully",
-            submission: saveSubmission
+        await submission.save();
+
+        res.status(201).json({
+            message: 'Material submitted successfully',
+            submission: submission,
         });
 
     }
@@ -782,6 +827,46 @@ exports.createSubmission = async (req, res) => {
         console.error('Error in creating submission:', error);
         return res.status(500).json({
             message: "Error in creating submission",
+            error: error.message || error,
+        });
+    }
+};
+
+exports.gradeSubmission = async (req, res) => {
+    try {
+        const { submissionId } = req.params;
+        const { grade } = req.body
+
+        // Find the submission
+        const submission = await Submission.findById(submissionId);
+        if (!submission) {
+            return res.status(404).json({ message: 'Submission not found' });
+        }
+
+        // Check if the submission has already been graded
+        if (submission.grade !== 0) {
+            return res.status(400).json({ message: 'This submission has already been graded.' });
+        }
+
+        // Find the material associated with the submission
+        const material = await Material.findById(submission.materialId);
+        if (!material) {
+            return res.status(404).json({ message: 'Material not found' });
+        }
+
+        submission.grade = grade;
+        await submission.save();
+
+        // Respond with the updated submission
+        res.status(200).json({
+            message: 'Submission graded successfully',
+            submission: submission,
+        });
+
+    } catch (error) {
+        console.error('Error grading submission:', error);
+        res.status(500).json({
+            message: 'Error grading submission',
             error: error.message || error,
         });
     }

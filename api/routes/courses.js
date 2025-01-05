@@ -42,6 +42,8 @@ router.post('/material/:courseId', checkAuth, CoursesController.createMaterial);
 
 router.post('/submission/:materialId', checkAuth, CoursesController.createSubmission);
 
+router.post('/submission/grade/:submissionId', checkAuth, CoursesController.gradeSubmission);
+
 router.post('/quiz/:courseId', CoursesController.createQuiz);
 
 module.exports = router;
