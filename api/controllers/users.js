@@ -23,7 +23,7 @@ const performUpdate = (id, updateFields, res) => {
 
 exports.getUser = async (req, res) => {
     try {
-        const { isArchived, query, filter, courseId } = req.query;
+        const { isArchived, query, filter, courseId, studentId } = req.query;
 
         const escapeRegex = (value) => {
             return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

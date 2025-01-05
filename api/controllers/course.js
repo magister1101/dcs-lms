@@ -411,14 +411,14 @@ exports.answerQuiz = async (req, res) => {
 
 exports.getGrade = async (req, res) => {
     try {
-        const { query, isArchived, courseId, userId } = req.query;
+        const { query, isArchived, courseId, studentId } = req.query;
 
         const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
         // Student filter
         let studentFilter = {};
-        if (userId) {
-            studentFilter._id = userId;
+        if (studentId) {
+            studentFilter._id = studentId; // Filter by specific student
         }
         if (query) {
             const escapedQuery = escapeRegex(query);
@@ -430,13 +430,18 @@ exports.getGrade = async (req, res) => {
         }
 
         // Fetch the course to get the list of enrolled students
-        const course = await Course.findOne({ _id: courseId }).select('students');
-        if (!course) {
-            return res.status(404).json({ message: 'Course not found' });
-        }
+        if (courseId) {
+            const course = await Course.findOne({ _id: courseId }).select('students');
+            if (!course) {
+                return res.status(404).json({ message: 'Course not found' });
+            }
 
-        // Fetch only the students enrolled in the course
-        studentFilter._id = { $in: course.students };
+            // Add course-based filtering for students
+            studentFilter._id = {
+                $in: course.students,
+                ...(studentFilter._id && { $eq: studentFilter._id }), // Combine course and studentId filter
+            };
+        }
 
         // Quiz filter
         let quizFilter = {};
@@ -448,7 +453,7 @@ exports.getGrade = async (req, res) => {
         }
 
         // Material filter for assignments
-        let materialFilter = { type: 'assignment' }; // Filter materials with type 'assignment'
+        let materialFilter = { type: 'assignment' };
         if (courseId) {
             materialFilter.coursesId = { $regex: escapeRegex(courseId), $options: 'i' };
         }
@@ -475,10 +480,12 @@ exports.getGrade = async (req, res) => {
 
                 // Map quizzes with their grades, including courseId
                 const gradesWithQuizStatus = quizzes.map((quiz) => {
-                    const grade = grades.find((g) => g.quizId._id.toString() === quiz._id.toString());
+                    const grade = grades.find(
+                        (g) => g.quizId && g.quizId._id.toString() === quiz._id.toString()
+                    );
                     return {
                         quizId: quiz._id,
-                        courseId: quiz.courseId, // Add courseId here
+                        courseId: quiz.courseId,
                         quizName: quiz.name,
                         score: grade ? grade.score : 'Quiz not taken',
                         total: grade ? grade.total : null,
@@ -486,19 +493,19 @@ exports.getGrade = async (req, res) => {
                     };
                 });
 
-                // Map materials (assignments) with their submissions
-                const assignmentsWithSubmissionStatus = materials.map((material) => {
-                    const submission = submissions.find(
-                        (s) => s.materialId._id.toString() === material._id.toString()
+                // Map only the student's submissions with material details
+                const assignmentsWithSubmissionStatus = submissions.map((submission) => {
+                    const material = materials.find(
+                        (m) => m._id.toString() === submission.materialId.toString()
                     );
                     return {
-                        materialId: material._id,
-                        courseId: material.coursesId, // Include courseId for assignments
-                        materialName: material.name,
-                        description: material.description,
-                        file: material.file,
-                        grade: submission ? submission.grade : 'Not graded',
-                        submittedAt: submission ? submission.createdAt : 'Not submitted',
+                        materialId: submission.materialId,
+                        courseId: material ? material.coursesId : null,
+                        materialName: material ? material.name : 'Unknown material',
+                        description: material ? material.description : 'No description',
+                        file: material ? material.file : 'No file',
+                        grade: submission.grade,
+                        submittedAt: submission.createdAt,
                     };
                 });
 
@@ -510,16 +517,17 @@ exports.getGrade = async (req, res) => {
                     username: student.username,
                     email: student.email,
                     grades: gradesWithQuizStatus,
-                    assignments: assignmentsWithSubmissionStatus, // Include assignments in the response
+                    assignments: assignmentsWithSubmissionStatus,
                 };
             })
         );
 
-        res.status(200).json(studentGrades);
+        return res.status(200).json(studentGrades);
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        return res.status(500).json({ error: err.message });
     }
 };
+
 
 exports.getQuizQuestions = async (req, res) => {
     try {
@@ -807,10 +815,16 @@ exports.createSubmission = async (req, res) => {
             return res.status(400).json({ message: 'You have already submitted this material.' });
         }
 
+        const student = await User.findById(studentId);
+        const studentName = student.firstName + " " + student.lastName;
+        const studentUsername = student.username;
+
         const submission = new Submission({
             _id: new mongoose.Types.ObjectId(),
             materialId,
             studentId,
+            studentUsername,
+            studentName,
             description,
             file,
         });
@@ -874,11 +888,15 @@ exports.gradeSubmission = async (req, res) => {
 
 exports.createQuiz = async (req, res) => {
     try {
-
-        const coursesId = req.params.courseId;
+        const { courseId } = req.params;
         const { name, questions } = req.body;
         const _id = new mongoose.Types.ObjectId();
-        const quiz = new Quiz({ _id, coursesId, name, questions });
+        const quiz = new Quiz({
+            _id,
+            courseId,
+            name,
+            questions
+        });
         await quiz.save();
         res.status(201).json({
             message: 'Quiz created successfully!',
