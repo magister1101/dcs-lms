@@ -8,6 +8,7 @@ const Test = require('../models/test');
 const Notification = require('../models/notification');
 const User = require('../models/user');
 const Quiz = require('../models/quiz');
+const Grade = require('../models/grade');
 
 const notify = async (instructorId, action, courseId, name, key, res) => {
     const instructor = await User.findOne({ _id: instructorId }).exec()
@@ -335,7 +336,7 @@ exports.getQuiz = async (req, res) => {
             const escapedcourseId = escapeRegex(courseId);
             queryConditions.push({
                 $or: [
-                    { coursesId: { $regex: escapedcourseId, $options: 'i' } },
+                    { courseId: { $regex: escapedcourseId, $options: 'i' } },
                 ],
             });
         }
@@ -358,6 +359,145 @@ exports.getQuiz = async (req, res) => {
             message: "Error in retrieving materials",
             error: error.message || error,
         });
+    }
+};
+
+exports.answerQuiz = async (req, res) => {
+    try {
+        const { answers } = req.body;
+        const studentId = req.userData.userId;
+        const quizId = req.params.quizId;
+
+        if (!studentId) return res.status(400).json({ message: 'Student ID is required' });
+
+        // Check if the student has already submitted this quiz
+        const existingGrade = await Grade.findOne({ studentId, quizId });
+
+        if (existingGrade) {
+            return res.status(400).json({ message: 'You have already submitted this quiz.' });
+        }
+
+        // Fetch the quiz
+        const quiz = await Quiz.findById(quizId);
+        if (!quiz) return res.status(404).json({ message: 'Quiz not found' });
+
+        // Evaluate answers
+        const results = quiz.questions.map((q, index) => ({
+            question: q.question,
+            userAnswer: answers[index] || '',
+            correctAnswer: q.answer,
+            correct: q.answer === answers[index],
+        }));
+
+        const score = results.filter((r) => r.correct).length;
+
+        // Save the grade
+        const grade = new Grade({
+            studentId,
+            quizId,
+            courseId: quiz.courseId,
+            score,
+            total: quiz.questions.length,
+            answers: results,
+        });
+
+        await grade.save();
+
+        res.json({ message: 'Quiz submitted successfully', results, score, total: quiz.questions.length });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
+exports.getGrade = async (req, res) => {
+    try {
+        const { query, isArchived, courseId, userId } = req.query;
+
+        const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+        // Student filter
+        let studentFilter = {};
+        if (userId) {
+            studentFilter._id = userId;
+        }
+        if (query) {
+            const escapedQuery = escapeRegex(query);
+            studentFilter.$or = [
+                { firstName: { $regex: escapedQuery, $options: 'i' } },
+                { lastName: { $regex: escapedQuery, $options: 'i' } },
+                { email: { $regex: escapedQuery, $options: 'i' } },
+            ];
+        }
+
+        // Fetch the course to get the list of enrolled students
+        const course = await Course.findOne({ _id: courseId }).select('students');
+        if (!course) {
+            return res.status(404).json({ message: 'Course not found' });
+        }
+
+        // Fetch only the students enrolled in the course
+        studentFilter._id = { $in: course.students };
+
+        // Quiz filter
+        let quizFilter = {};
+        if (courseId) {
+            quizFilter.courseId = { $regex: escapeRegex(courseId), $options: 'i' };
+        }
+        if (isArchived !== undefined) {
+            quizFilter.isArchived = isArchived === 'true';
+        }
+
+        // Fetch students and quizzes
+        const students = await User.find(studentFilter);
+        const quizzes = await Quiz.find(quizFilter);
+
+        // Map through students and get their grades
+        const studentGrades = await Promise.all(
+            students.map(async (student) => {
+                // Find grades for the student, filtered by courseId
+                const grades = await Grade.find({
+                    studentId: student._id,
+                    quizId: { $in: quizzes.map((quiz) => quiz._id) }, // Only grades for specific quizzes
+                }).populate('quizId');
+
+                // Map quizzes with their grades, including courseId
+                const gradesWithQuizStatus = quizzes.map((quiz) => {
+                    const grade = grades.find((g) => g.quizId._id.toString() === quiz._id.toString());
+                    return {
+                        quizId: quiz._id,
+                        courseId: quiz.courseId, // Add courseId here
+                        quizName: quiz.name,
+                        score: grade ? grade.score : 'Quiz not taken',
+                        total: grade ? grade.total : null,
+                        submittedAt: grade ? grade.submittedAt : null,
+                    };
+                });
+
+                const studentName = `${student.firstName} ${student.lastName}`;
+
+                return {
+                    studentId: student._id,
+                    name: studentName,
+                    username: student.username,
+                    email: student.email,
+                    grades: gradesWithQuizStatus,
+                };
+            })
+        );
+
+        res.status(200).json(studentGrades);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
+exports.getQuizQuestions = async (req, res) => {
+    try {
+        const quiz = await Quiz.findById(req.params.quizId);
+        if (!quiz) return res.status(404).json({ message: 'Quiz not found' });
+        return res.json(quiz);
+    } catch (err) {
+        return res.status(500).json({ error: err.message });
     }
 };
 

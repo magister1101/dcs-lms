@@ -10,11 +10,15 @@ router.get('/test', CoursesController.test);
 
 router.get('/getComment', CoursesController.getComment);
 
+router.get('/getGrade', CoursesController.getGrade);
+
 router.get('/getNotification', CoursesController.getNotification);
 
 router.get('/getMaterial', CoursesController.getMaterial);
 
-router.get('/getQuiz/', CoursesController.getQuiz);
+router.get('/getQuizQuestions/:quizId', CoursesController.getQuizQuestions);
+
+router.get('/getQuiz', CoursesController.getQuiz);
 
 router.get('/getSubmission', CoursesController.getSubmission);
 
@@ -27,6 +31,8 @@ router.post('/create', checkAuth, CoursesController.createCourse);
 router.post('/test', CoursesController.test);
 
 router.post('/material/update/:materialId', CoursesController.updateMaterial);
+
+router.post('/answerQuiz/:quizId', checkAuth, CoursesController.answerQuiz);
 
 router.post('/update/:courseId', checkAuth, CoursesController.updateCourse);
 
