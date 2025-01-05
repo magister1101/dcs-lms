@@ -8,13 +8,15 @@ const CoursesController = require('../controllers/course');
 
 router.get('/test', CoursesController.test);
 
-router.get('/getComment', CoursesController.getComment)
+router.get('/getComment', CoursesController.getComment);
 
-router.get('/getNotification', CoursesController.getNotification)
+router.get('/getNotification', CoursesController.getNotification);
 
-router.get('/getMaterial', CoursesController.getMaterial)
+router.get('/getMaterial', CoursesController.getMaterial);
 
-router.get('/getSubmission', CoursesController.getSubmission)
+router.get('/getQuiz/', CoursesController.getQuiz);
+
+router.get('/getSubmission', CoursesController.getSubmission);
 
 router.get('/joinCourse/:courseId', checkAuth, CoursesController.joinCourse);
 
@@ -33,5 +35,7 @@ router.post('/comment/:materialId', checkAuth, CoursesController.createComment);
 router.post('/material/:courseId', checkAuth, CoursesController.createMaterial);
 
 router.post('/submission/:materialId', checkAuth, CoursesController.createSubmission);
+
+router.post('/quiz/:courseId', CoursesController.createQuiz);
 
 module.exports = router;

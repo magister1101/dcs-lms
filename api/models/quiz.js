@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 
 const quizSchema = new mongoose.Schema({
+    _id: mongoose.Schema.Types.ObjectId,
     coursesId: { type: String, required: true },
     name: { type: String, required: true },
     questions: [
@@ -9,6 +10,7 @@ const quizSchema = new mongoose.Schema({
             answer: { type: String, required: true },
         },
     ],
+    dueDate: { type: Date },
     createdAt: { type: Date, default: Date.now },
     isArchived: { type: Boolean, default: false },
 });

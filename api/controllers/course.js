@@ -7,6 +7,7 @@ const Submission = require('../models/submission');
 const Test = require('../models/test');
 const Notification = require('../models/notification');
 const User = require('../models/user');
+const Quiz = require('../models/quiz');
 
 const notify = async (instructorId, action, courseId, name, key, res) => {
     const instructor = await User.findOne({ _id: instructorId }).exec()
@@ -296,6 +297,60 @@ exports.getMaterial = async (req, res) => {
         });
 
         return res.status(200).json(materialsWithComments);
+
+    } catch (error) {
+        console.error('Error retrieving materials:', error);
+        return res.status(500).json({
+            message: "Error in retrieving materials",
+            error: error.message || error,
+        });
+    }
+};
+
+exports.getQuiz = async (req, res) => {
+    try {
+        const { isArchived, query, courseId } = req.query;
+
+        const escapeRegex = (value) => {
+            return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        };
+
+        let searchCriteria = {};
+        const queryConditions = [];
+
+        if (query) {
+            const escapedQuery = escapeRegex(query);
+            const orConditions = [];
+
+            if (mongoose.Types.ObjectId.isValid(query)) {
+                orConditions.push({ _id: query });
+            }
+            orConditions.push(
+                { name: { $regex: escapedQuery, $options: 'i' } },
+            );
+
+            queryConditions.push({ $or: orConditions });
+        }
+        if (courseId) {
+            const escapedcourseId = escapeRegex(courseId);
+            queryConditions.push({
+                $or: [
+                    { coursesId: { $regex: escapedcourseId, $options: 'i' } },
+                ],
+            });
+        }
+
+        if (isArchived) {
+            const isArchivedBool = isArchived === 'true'; // Convert to boolean
+            queryConditions.push({ isArchived: isArchivedBool });
+        }
+
+        if (queryConditions.length > 0) {
+            searchCriteria = { $and: queryConditions };
+        }
+        const quizzes = await Quiz.find(searchCriteria);
+
+        return res.status(200).json(quizzes);
 
     } catch (error) {
         console.error('Error retrieving materials:', error);
@@ -597,9 +652,13 @@ exports.createQuiz = async (req, res) => {
 
         const coursesId = req.params.courseId;
         const { name, questions } = req.body;
-        const quiz = new Quiz({ coursesId, name, questions });
+        const _id = new mongoose.Types.ObjectId();
+        const quiz = new Quiz({ _id, coursesId, name, questions });
         await quiz.save();
-        res.status(201).json({ message: 'Quiz created successfully!' });
+        res.status(201).json({
+            message: 'Quiz created successfully!',
+            quiz: quiz
+        });
 
     } catch (err) {
         console.error('Error in creating quiz:', err);
