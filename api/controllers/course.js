@@ -918,8 +918,6 @@ exports.updateCourse = async (req, res) => {
         const courseId = await req.params.courseId;
         const course = await Course.findOne({ _id: courseId }).exec();
         const updateFields = await req.body;
-        console.log("course", course)
-        console.log("coursename", course.name)
 
         const updatedCourse = performUpdate(courseId, updateFields, res);
         notify(instructorId, "Updated", courseId, course.name, "course", res)
