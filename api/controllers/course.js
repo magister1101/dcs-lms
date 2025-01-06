@@ -528,7 +528,6 @@ exports.getGrade = async (req, res) => {
     }
 };
 
-
 exports.getQuizQuestions = async (req, res) => {
     try {
         const quiz = await Quiz.findById(req.params.quizId);
@@ -915,10 +914,12 @@ exports.createQuiz = async (req, res) => {
 exports.updateCourse = async (req, res) => {
     try {
 
-        const instructorId = req.userData.userId;
-        const courseId = req.params.courseId;
-        const course = Course.findOne({ _id: courseId }).exec();
-        const updateFields = req.body;
+        const instructorId = await req.userData.userId;
+        const courseId = await req.params.courseId;
+        const course = await Course.findOne({ _id: courseId }).exec();
+        const updateFields = await req.body;
+        console.log("course", course)
+        console.log("coursename", course.name)
 
         const updatedCourse = performUpdate(courseId, updateFields, res);
         notify(instructorId, "Updated", courseId, course.name, "course", res)
