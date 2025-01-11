@@ -9,6 +9,7 @@ const Notification = require('../models/notification');
 const User = require('../models/user');
 const Quiz = require('../models/quiz');
 const Grade = require('../models/grade');
+const TotalGrade = require('../models/totalGrade');
 
 const notify = async (instructorId, action, courseId, name, key, res) => {
     const instructor = await User.findOne({ _id: instructorId }).exec()
@@ -370,13 +371,6 @@ exports.answerQuiz = async (req, res) => {
 
         if (!studentId) return res.status(400).json({ message: 'Student ID is required' });
 
-        // Check if the student has already submitted this quiz
-        const existingGrade = await Grade.findOne({ studentId, quizId });
-
-        if (existingGrade) {
-            return res.status(400).json({ message: 'You have already submitted this quiz.' });
-        }
-
         // Fetch the quiz
         const quiz = await Quiz.findById(quizId);
         if (!quiz) return res.status(404).json({ message: 'Quiz not found' });
@@ -389,21 +383,31 @@ exports.answerQuiz = async (req, res) => {
             correct: q.answer === answers[index],
         }));
 
-        const score = results.filter((r) => r.correct).length;
+        const correctAnswers = results.filter((r) => r.correct).length;
+        const totalQuestions = quiz.questions.length;
 
-        // Save the grade
-        const grade = new Grade({
+        // Calculate total grade as a fraction of correct answers
+        const totalGrade = (correctAnswers / totalQuestions) * 100; // The result is a percentage.
+
+        // Save the grade with the totalGrade value in the TotalGrade collection
+        const totalGradeRecord = new TotalGrade({
             studentId,
-            quizId,
-            courseId: quiz.courseId,
-            score,
-            total: quiz.questions.length,
-            answers: results,
+            grade: totalGrade.toFixed(2), // Save the totalGrade as a decimal
+            type: 'quiz', // Type is quiz
+            taskId: quizId, // Use quizId as taskId
         });
 
-        await grade.save();
+        await totalGradeRecord.save();
 
-        res.json({ message: 'Quiz submitted successfully', results, score, total: quiz.questions.length });
+        // Respond with the requested structure
+        const response = {
+            studentId,
+            totalGrade: totalGrade.toFixed(2), // Return totalGrade as a decimal value (fixed to 2 decimals)
+            type: 'quiz',
+            taskId: quizId, // The quiz ID as task ID
+        };
+
+        res.json(response);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -845,45 +849,45 @@ exports.createSubmission = async (req, res) => {
     }
 };
 
-exports.gradeSubmission = async (req, res) => {
-    try {
-        const { submissionId } = req.params;
-        const { grade } = req.body
+// exports.gradeSubmission = async (req, res) => {
+//     try {
+//         const { submissionId } = req.params;
+//         const { grade } = req.body
 
-        // Find the submission
-        const submission = await Submission.findById(submissionId);
-        if (!submission) {
-            return res.status(404).json({ message: 'Submission not found' });
-        }
+//         // Find the submission
+//         const submission = await Submission.findById(submissionId);
+//         if (!submission) {
+//             return res.status(404).json({ message: 'Submission not found' });
+//         }
 
-        // Check if the submission has already been graded
-        if (submission.grade !== 0) {
-            return res.status(400).json({ message: 'This submission has already been graded.' });
-        }
+//         // Check if the submission has already been graded
+//         if (submission.grade !== 0) {
+//             return res.status(400).json({ message: 'This submission has already been graded.' });
+//         }
 
-        // Find the material associated with the submission
-        const material = await Material.findById(submission.materialId);
-        if (!material) {
-            return res.status(404).json({ message: 'Material not found' });
-        }
+//         // Find the material associated with the submission
+//         const material = await Material.findById(submission.materialId);
+//         if (!material) {
+//             return res.status(404).json({ message: 'Material not found' });
+//         }
 
-        submission.grade = grade;
-        await submission.save();
+//         submission.grade = grade;
+//         await submission.save();
 
-        // Respond with the updated submission
-        res.status(200).json({
-            message: 'Submission graded successfully',
-            submission: submission,
-        });
+//         // Respond with the updated submission
+//         res.status(200).json({
+//             message: 'Submission graded successfully',
+//             submission: submission,
+//         });
 
-    } catch (error) {
-        console.error('Error grading submission:', error);
-        res.status(500).json({
-            message: 'Error grading submission',
-            error: error.message || error,
-        });
-    }
-};
+//     } catch (error) {
+//         console.error('Error grading submission:', error);
+//         res.status(500).json({
+//             message: 'Error grading submission',
+//             error: error.message || error,
+//         });
+//     }
+// };
 
 exports.createQuiz = async (req, res) => {
     try {
@@ -966,5 +970,155 @@ exports.test = async (req, res) => {
             message: "Error in test",
             error: error.message || error,
         });
+    }
+};
+
+exports.grade = async (req, res) => {
+    try {
+        const { studentId } = req.params;
+        const grades = await TotalGrade.find({ studentId });
+
+        if (!grades.length) {
+            return res.status(404).json({ message: 'No grades found for this student.' });
+        }
+
+        const taskNames = await Promise.all(
+            grades.map(async (grade) => {
+                let taskName = 'Unknown Task';
+
+                if (grade.type === 'task') {
+                    const material = await Material.findById(grade.taskId);
+                    if (material) {
+                        taskName = material.name;
+                    }
+                } else if (grade.type === 'quiz') {
+                    const quiz = await Quiz.findById(grade.taskId);
+                    if (quiz) {
+                        taskName = quiz.name;
+                    }
+                }
+
+                return { taskId: grade.taskId, taskName };
+            })
+        );
+
+        const totalGrades = grades.length;
+        const totalScore = grades.reduce((sum, grade) => sum + grade.grade, 0);
+        const average = (totalScore / totalGrades).toFixed(2);
+
+        const quizGrades = grades.filter((grade) => grade.type === 'quiz');
+        const taskGrades = grades.filter((grade) => grade.type === 'task');
+
+        const quizAverage =
+            quizGrades.length > 0
+                ? (quizGrades.reduce((sum, grade) => sum + grade.grade, 0) / quizGrades.length).toFixed(2)
+                : 0;
+        const taskAverage =
+            taskGrades.length > 0
+                ? (taskGrades.reduce((sum, grade) => sum + grade.grade, 0) / taskGrades.length).toFixed(2)
+                : 0;
+
+        console.log("quizAverage", quizAverage);
+        console.log("taskAverage", taskAverage);
+
+        let weakness = 'None';
+        let weaknessDetails = '';
+        if (quizAverage < taskAverage) {
+            weakness = 'Quiz';
+            weaknessDetails = `Your quiz average (${quizAverage}) is lower than your task average (${taskAverage}). Focus on improving quiz performance.`;
+        }
+        if (taskAverage < quizAverage) {
+            weakness = 'Task';
+            weaknessDetails = `Your task average (${taskAverage}) is lower than your quiz average (${quizAverage}). Focus on improving task performance.`;
+        }
+
+        const lowPerformingQuizzes = quizGrades.filter((grade) => grade.grade < 70);
+        const lowPerformingTasks = taskGrades.filter((grade) => grade.grade < 70);
+
+        let performanceFeedback = 'You are performing well in all areas.';
+        if (lowPerformingQuizzes.length > 0) {
+            performanceFeedback = `You are struggling with the following quizzes: ${lowPerformingQuizzes.map((quiz) => {
+                const task = taskNames.find((task) => task.taskId === quiz.taskId);
+                return task ? task.taskName : quiz.taskId;
+            }).join(', ')}.`;
+        }
+        if (lowPerformingTasks.length > 0) {
+            performanceFeedback = `You are struggling with the following tasks: ${lowPerformingTasks.map((task) => {
+                const taskDetail = taskNames.find((task) => task.taskId === task.taskId);
+                return taskDetail ? taskDetail.taskName : task.taskId;
+            }).join(', ')}.`;
+        }
+
+        // Prepare the final response
+        const response = {
+            studentId: grades[0].studentId,
+            grades: grades.map((grade) => {
+                const taskDetail = taskNames.find((task) => task.taskId === grade.taskId);
+                return {
+                    taskId: grade.taskId,
+                    taskName: taskDetail ? taskDetail.taskName : grade.taskId,
+                    grades: [
+                        { grade: grade.grade, type: grade.type },
+                    ],
+                };
+            }),
+            average,
+            quizAverage,
+            taskAverage,
+            weakness,
+            weaknessDetails,
+            performanceFeedback,
+        };
+
+        console.log(response);
+        res.json(response);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
+exports.gradeSubmission = async (req, res) => {
+    try {
+
+        console.log("req.body", req.body);
+        const { studentId } = req.params;
+        const { grade, materialId } = req.body; // The grade passed by the teacher in the body
+
+        if (typeof grade !== 'number' || grade < 0 || grade > 100) {
+            console.log("Invalid grade", grade);
+            return res.status(400).json({ message: 'Invalid grade. It should be a number between 0 and 100.' });
+        }
+
+        // Fetch the submission
+        const submission = await Submission.findOne({ materialId, studentId, isArchived: false });
+
+        if (!submission) {
+            return res.status(404).json({ message: 'Submission not found or already archived.' });
+        }
+
+        // Update the submission with the grade given by the teacher
+        submission.grade = grade;
+        await submission.save();
+
+        // Save the calculated grade to TotalGrade schema
+        const totalGradeRecord = new TotalGrade({
+            studentId: submission.studentId,
+            grade: grade,  // The grade provided by the teacher
+            type: 'task',   // Type is 'task' since it's a task submission
+            taskId: materialId, // Use the materialId as taskId
+        });
+
+        await totalGradeRecord.save();
+
+        // Respond with the updated total grade
+        res.json({
+            studentId: submission.studentId,
+            totalGrade: grade.toFixed(2),  // Returning the grade as a decimal
+            type: 'task',
+            taskId: materialId,  // The materialId as taskId
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
 };

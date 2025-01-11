@@ -16,6 +16,8 @@ router.get('/getNotification', CoursesController.getNotification);
 
 router.get('/getMaterial', CoursesController.getMaterial);
 
+router.get('/grades/totalGrades/:studentId', CoursesController.grade);
+
 router.get('/getQuizQuestions/:quizId', CoursesController.getQuizQuestions);
 
 router.get('/getQuiz', CoursesController.getQuiz);
@@ -42,7 +44,7 @@ router.post('/material/:courseId', checkAuth, CoursesController.createMaterial);
 
 router.post('/submission/:materialId', checkAuth, CoursesController.createSubmission);
 
-router.post('/submission/grade/:submissionId', checkAuth, CoursesController.gradeSubmission);
+router.post('/submission/grade/:studentId', checkAuth, CoursesController.gradeSubmission);
 
 router.post('/quiz/:courseId', CoursesController.createQuiz);
 
