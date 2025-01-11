@@ -375,12 +375,6 @@ exports.answerQuiz = async (req, res) => {
         const quiz = await Quiz.findById(quizId);
         if (!quiz) return res.status(404).json({ message: 'Quiz not found' });
 
-        // Check if the student has already taken the quiz
-        const existingGrade = await TotalGrade.findOne({ studentId, taskId: quizId });
-        if (existingGrade) {
-            return res.status(400).json({ message: 'You have already taken this quiz.' });
-        }
-
         // Evaluate answers
         const results = quiz.questions.map((q, index) => ({
             question: q.question,
@@ -988,26 +982,30 @@ exports.grade = async (req, res) => {
             return res.status(404).json({ message: 'No grades found for this student.' });
         }
 
+        // Fetch task names using taskId (taskId can belong to either a Material or a Quiz)
         const taskNames = await Promise.all(
             grades.map(async (grade) => {
                 let taskName = 'Unknown Task';
 
                 if (grade.type === 'task') {
+                    // Check if the task is a material
                     const material = await Material.findById(grade.taskId);
                     if (material) {
                         taskName = material.name;
                     }
                 } else if (grade.type === 'quiz') {
+                    // Check if the task is a quiz
                     const quiz = await Quiz.findById(grade.taskId);
                     if (quiz) {
                         taskName = quiz.name;
                     }
                 }
 
-                return { taskId: grade.taskId, taskName };
+                return { taskId: grade.taskId, taskName, type: grade.type };  // Add type to differentiate between quizzes and tasks
             })
         );
 
+        // Calculate average and categorize total grades
         const totalGrades = grades.length;
         const totalScore = grades.reduce((sum, grade) => sum + grade.grade, 0);
         const average = (totalScore / totalGrades).toFixed(2);
@@ -1024,34 +1022,38 @@ exports.grade = async (req, res) => {
                 ? (taskGrades.reduce((sum, grade) => sum + grade.grade, 0) / taskGrades.length).toFixed(2)
                 : 0;
 
-        console.log("quizAverage", quizAverage);
-        console.log("taskAverage", taskAverage);
-
         let weakness = 'None';
-        let weaknessDetails = '';
+        let weaknessDetails = 'None';
         if (quizAverage < taskAverage) {
-            weakness = 'Quiz';
-            weaknessDetails = `Your quiz average (${quizAverage}) is lower than your task average (${taskAverage}). Focus on improving quiz performance.`;
+            if (taskGrades.length !== 0) {
+                weakness = 'Quiz';
+                weaknessDetails = `Your quiz average (${quizAverage}) is lower than your task average (${taskAverage}). Focus on improving quiz performance.`;
+            }
         }
         if (taskAverage < quizAverage) {
-            weakness = 'Task';
-            weaknessDetails = `Your task average (${taskAverage}) is lower than your quiz average (${quizAverage}). Focus on improving task performance.`;
+            if (taskGrades.length !== 0) {
+                weakness = 'Task';
+                weaknessDetails = `Your task average (${taskAverage}) is lower than your quiz average (${quizAverage}). Focus on improving task performance.`;
+            }
         }
 
+        // Identify low performance tasks/quiz
         const lowPerformingQuizzes = quizGrades.filter((grade) => grade.grade < 70);
         const lowPerformingTasks = taskGrades.filter((grade) => grade.grade < 70);
 
         let performanceFeedback = 'You are performing well in all areas.';
         if (lowPerformingQuizzes.length > 0) {
             performanceFeedback = `You are struggling with the following quizzes: ${lowPerformingQuizzes.map((quiz) => {
-                const task = taskNames.find((task) => task.taskId === quiz.taskId);
-                return task ? task.taskName : quiz.taskId;
+                // Filter by type to ensure correct task name
+                const task = taskNames.find((task) => task.taskId === quiz.taskId && task.type === 'quiz');
+                return task ? task.taskName : quiz.taskId; // Fall back to taskId if name is not found
             }).join(', ')}.`;
         }
         if (lowPerformingTasks.length > 0) {
             performanceFeedback = `You are struggling with the following tasks: ${lowPerformingTasks.map((task) => {
-                const taskDetail = taskNames.find((task) => task.taskId === task.taskId);
-                return taskDetail ? taskDetail.taskName : task.taskId;
+                // Filter by type to ensure correct task name
+                const taskDetail = taskNames.find((task) => task.taskId === task.taskId && task.type === 'task');
+                return taskDetail ? taskDetail.taskName : task.taskId; // Fall back to taskId if name is not found
             }).join(', ')}.`;
         }
 
@@ -1059,7 +1061,8 @@ exports.grade = async (req, res) => {
         const response = {
             studentId: grades[0].studentId,
             grades: grades.map((grade) => {
-                const taskDetail = taskNames.find((task) => task.taskId === grade.taskId);
+                // Ensure correct task name based on type
+                const taskDetail = taskNames.find((task) => task.taskId === grade.taskId && task.type === grade.type);
                 return {
                     taskId: grade.taskId,
                     taskName: taskDetail ? taskDetail.taskName : grade.taskId,
@@ -1076,13 +1079,13 @@ exports.grade = async (req, res) => {
             performanceFeedback,
         };
 
-        console.log(response);
         res.json(response);
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error' });
     }
 };
+
 
 exports.gradeSubmission = async (req, res) => {
     try {
