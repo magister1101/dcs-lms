@@ -375,6 +375,12 @@ exports.answerQuiz = async (req, res) => {
         const quiz = await Quiz.findById(quizId);
         if (!quiz) return res.status(404).json({ message: 'Quiz not found' });
 
+        // Check if the student has already taken the quiz
+        const existingGrade = await TotalGrade.findOne({ studentId, taskId: quizId });
+        if (existingGrade) {
+            return res.status(400).json({ message: 'You have already taken this quiz.' });
+        }
+
         // Evaluate answers
         const results = quiz.questions.map((q, index) => ({
             question: q.question,
