@@ -16,7 +16,7 @@ router.get('/getNotification', CoursesController.getNotification);
 
 router.get('/getMaterial', CoursesController.getMaterial);
 
-router.get('/grades/totalGrades/:studentId', CoursesController.grade);
+router.get('/grades/totalGrades/:studentId/:courseId', CoursesController.grade);
 
 router.get('/getQuizQuestions/:quizId', CoursesController.getQuizQuestions);
 

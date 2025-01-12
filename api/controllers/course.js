@@ -975,43 +975,54 @@ exports.test = async (req, res) => {
 
 exports.grade = async (req, res) => {
     try {
-        const { studentId } = req.params;
+        const { studentId, courseId } = req.params;
+
+        // Fetch grades for the student
         const grades = await TotalGrade.find({ studentId });
 
         if (!grades.length) {
             return res.status(404).json({ message: 'No grades found for this student.' });
         }
 
-        // Fetch task names using taskId (taskId can belong to either a Material or a Quiz)
+        // Fetch task names and course IDs using taskId (filtered by courseId)
         const taskNames = await Promise.all(
             grades.map(async (grade) => {
                 let taskName = 'Unknown Task';
+                let taskCourseId = 'Unknown Course';
 
                 if (grade.type === 'task') {
-                    // Check if the task is a material
                     const material = await Material.findById(grade.taskId);
-                    if (material) {
+                    if (material && material.coursesId === courseId) {
                         taskName = material.name;
+                        taskCourseId = material.coursesId;
                     }
                 } else if (grade.type === 'quiz') {
-                    // Check if the task is a quiz
                     const quiz = await Quiz.findById(grade.taskId);
-                    if (quiz) {
+                    if (quiz && quiz.courseId === courseId) {
                         taskName = quiz.name;
+                        taskCourseId = quiz.courseId;
                     }
                 }
 
-                return { taskId: grade.taskId, taskName, type: grade.type };  // Add type to differentiate between quizzes and tasks
+                return { taskId: grade.taskId, taskName, type: grade.type, courseId: taskCourseId };
             })
         );
 
-        // Calculate average and categorize total grades
-        const totalGrades = grades.length;
-        const totalScore = grades.reduce((sum, grade) => sum + grade.grade, 0);
+        // Filter grades by matching courseId
+        const filteredGrades = grades.filter((grade) =>
+            taskNames.some((task) => task.taskId === grade.taskId && task.courseId === courseId)
+        );
+
+        if (!filteredGrades.length) {
+            return res.status(404).json({ message: 'No grades found for this course.' });
+        }
+
+        const totalGrades = filteredGrades.length;
+        const totalScore = filteredGrades.reduce((sum, grade) => sum + grade.grade, 0);
         const average = (totalScore / totalGrades).toFixed(2);
 
-        const quizGrades = grades.filter((grade) => grade.type === 'quiz');
-        const taskGrades = grades.filter((grade) => grade.type === 'task');
+        const quizGrades = filteredGrades.filter((grade) => grade.type === 'quiz');
+        const taskGrades = filteredGrades.filter((grade) => grade.type === 'task');
 
         const quizAverage =
             quizGrades.length > 0
@@ -1025,50 +1036,40 @@ exports.grade = async (req, res) => {
         let weakness = 'None';
         let weaknessDetails = 'None';
         if (quizAverage < taskAverage) {
-            if (taskGrades.length !== 0) {
-                weakness = 'Quiz';
-                weaknessDetails = `Your quiz average (${quizAverage}) is lower than your task average (${taskAverage}). Focus on improving quiz performance.`;
-            }
+            weakness = 'Quiz';
+            weaknessDetails = `Your quiz average (${quizAverage}) is lower than your task average (${taskAverage}). Focus on improving quiz performance.`;
         }
         if (taskAverage < quizAverage) {
-            if (taskGrades.length !== 0) {
-                weakness = 'Task';
-                weaknessDetails = `Your task average (${taskAverage}) is lower than your quiz average (${quizAverage}). Focus on improving task performance.`;
-            }
+            weakness = 'Task';
+            weaknessDetails = `Your task average (${taskAverage}) is lower than your quiz average (${quizAverage}). Focus on improving task performance.`;
         }
 
-        // Identify low performance tasks/quiz
         const lowPerformingQuizzes = quizGrades.filter((grade) => grade.grade < 70);
         const lowPerformingTasks = taskGrades.filter((grade) => grade.grade < 70);
 
         let performanceFeedback = 'You are performing well in all areas.';
         if (lowPerformingQuizzes.length > 0) {
             performanceFeedback = `You are struggling with the following quizzes: ${lowPerformingQuizzes.map((quiz) => {
-                // Filter by type to ensure correct task name
                 const task = taskNames.find((task) => task.taskId === quiz.taskId && task.type === 'quiz');
-                return task ? task.taskName : quiz.taskId; // Fall back to taskId if name is not found
+                return task ? `${task.taskName} (Course: ${task.courseId})` : quiz.taskId;
             }).join(', ')}.`;
         }
         if (lowPerformingTasks.length > 0) {
             performanceFeedback = `You are struggling with the following tasks: ${lowPerformingTasks.map((task) => {
-                // Filter by type to ensure correct task name
                 const taskDetail = taskNames.find((task) => task.taskId === task.taskId && task.type === 'task');
-                return taskDetail ? taskDetail.taskName : task.taskId; // Fall back to taskId if name is not found
+                return taskDetail ? `${taskDetail.taskName} (Course: ${taskDetail.courseId})` : task.taskId;
             }).join(', ')}.`;
         }
 
-        // Prepare the final response
         const response = {
-            studentId: grades[0].studentId,
-            grades: grades.map((grade) => {
-                // Ensure correct task name based on type
+            studentId: filteredGrades[0].studentId,
+            grades: filteredGrades.map((grade) => {
                 const taskDetail = taskNames.find((task) => task.taskId === grade.taskId && task.type === grade.type);
                 return {
                     taskId: grade.taskId,
                     taskName: taskDetail ? taskDetail.taskName : grade.taskId,
-                    grades: [
-                        { grade: grade.grade, type: grade.type },
-                    ],
+                    courseId: taskDetail ? taskDetail.courseId : 'Unknown Course',
+                    grades: [{ grade: grade.grade, type: grade.type }],
                 };
             }),
             average,
@@ -1085,6 +1086,7 @@ exports.grade = async (req, res) => {
         res.status(500).json({ message: 'Server error' });
     }
 };
+
 
 
 exports.gradeSubmission = async (req, res) => {
