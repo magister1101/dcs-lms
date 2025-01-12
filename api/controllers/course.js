@@ -365,49 +365,53 @@ exports.getQuiz = async (req, res) => {
 
 exports.answerQuiz = async (req, res) => {
     try {
-        const { answers } = req.body;
+        const { answers } = req.body; // { questionIndex: "answer" }
         const studentId = req.userData.userId;
         const quizId = req.params.quizId;
 
         if (!studentId) return res.status(400).json({ message: 'Student ID is required' });
 
-        // Fetch the quiz
         const quiz = await Quiz.findById(quizId);
         if (!quiz) return res.status(404).json({ message: 'Quiz not found' });
 
-        // Evaluate answers
-        const results = quiz.questions.map((q, index) => ({
-            question: q.question,
-            userAnswer: answers[index] || '',
-            correctAnswer: q.answer,
-            correct: q.answer === answers[index],
-        }));
+        const results = quiz.questions.map((q, index) => {
+            const userAnswer = answers[index] || '';
+
+            let isCorrect = false;
+            if (q.type === 'mcq') {
+                isCorrect = q.answer === userAnswer;
+            } else if (q.type === 'fib') {
+                isCorrect = q.answer.trim().toLowerCase() === userAnswer.trim().toLowerCase();
+            }
+
+            return {
+                question: q.question,
+                type: q.type,
+                userAnswer,
+                correctAnswer: q.answer,
+                correct: isCorrect,
+            };
+        });
 
         const correctAnswers = results.filter((r) => r.correct).length;
         const totalQuestions = quiz.questions.length;
+        const totalGrade = ((correctAnswers / totalQuestions) * 100).toFixed(2);
 
-        // Calculate total grade as a fraction of correct answers
-        const totalGrade = (correctAnswers / totalQuestions) * 100; // The result is a percentage.
-
-        // Save the grade with the totalGrade value in the TotalGrade collection
         const totalGradeRecord = new TotalGrade({
             studentId,
-            grade: totalGrade.toFixed(2), // Save the totalGrade as a decimal
-            type: 'quiz', // Type is quiz
-            taskId: quizId, // Use quizId as taskId
+            grade: totalGrade,
+            type: 'quiz',
+            taskId: quizId,
         });
-
         await totalGradeRecord.save();
 
-        // Respond with the requested structure
-        const response = {
+        res.json({
             studentId,
-            totalGrade: totalGrade.toFixed(2), // Return totalGrade as a decimal value (fixed to 2 decimals)
+            totalGrade,
             type: 'quiz',
-            taskId: quizId, // The quiz ID as task ID
-        };
-
-        res.json(response);
+            taskId: quizId,
+            results,
+        });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -893,28 +897,34 @@ exports.createQuiz = async (req, res) => {
     try {
         const { courseId } = req.params;
         const { name, questions } = req.body;
-        const _id = new mongoose.Types.ObjectId();
-        const quiz = new Quiz({
-            _id,
-            courseId,
-            name,
-            questions
-        });
+
+        // Validate questions
+        for (const question of questions) {
+            if (!question.question || !question.type || !question.answer) {
+                return res.status(400).json({ message: 'Each question must have a question, type, and answer.' });
+            }
+            if (question.type === 'mcq' && (!question.options || question.options.length < 2)) {
+                return res.status(400).json({
+                    message: 'Multiple-choice questions must have at least two options.',
+                });
+            }
+        }
+
+        const quiz = new Quiz({ courseId, name, questions });
         await quiz.save();
+
         res.status(201).json({
             message: 'Quiz created successfully!',
-            quiz: quiz
+            quiz,
         });
-
     } catch (err) {
         console.error('Error in creating quiz:', err);
         return res.status(500).json({
-            message: "Error in creating quiz",
+            message: 'Error in creating quiz',
             error: err.message || err,
         });
     }
 };
-
 exports.updateCourse = async (req, res) => {
     try {
 

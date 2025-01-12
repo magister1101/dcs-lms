@@ -1,18 +1,18 @@
 const mongoose = require('mongoose');
 
+const questionSchema = new mongoose.Schema({
+    question: { type: String, required: true },
+    type: { type: String, enum: ['mcq', 'fib'], required: true }, // Question type
+    options: { type: [String] }, // For multiple-choice questions
+    answer: { type: String, required: true }, // Correct answer
+});
+
 const quizSchema = new mongoose.Schema({
-    _id: { type: mongoose.Schema.Types.ObjectId },
     courseId: { type: String, required: true },
     name: { type: String, required: true },
-    questions: [
-        {
-            question: { type: String, required: true },
-            answer: { type: String, required: true },
-        },
-    ],
-    dueDate: { type: Date },
-    createdAt: { type: Date, default: Date.now },
+    questions: [questionSchema],
     isArchived: { type: Boolean, default: false },
 });
 
-module.exports = mongoose.model('Quiz', quizSchema);
+const Quiz = mongoose.model('Quiz', quizSchema);
+module.exports = Quiz;
