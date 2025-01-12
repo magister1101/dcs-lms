@@ -371,6 +371,12 @@ exports.answerQuiz = async (req, res) => {
 
         if (!studentId) return res.status(400).json({ message: 'Student ID is required' });
 
+        // Check if the student has already taken the quiz
+        const existingRecord = await TotalGrade.findOne({ studentId, taskId: quizId, type: 'quiz' });
+        if (existingRecord) {
+            return res.status(400).json({ message: 'You have already taken this quiz.' });
+        }
+
         const quiz = await Quiz.findById(quizId);
         if (!quiz) return res.status(404).json({ message: 'Quiz not found' });
 
@@ -416,6 +422,7 @@ exports.answerQuiz = async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 };
+
 
 exports.getGrade = async (req, res) => {
     try {
