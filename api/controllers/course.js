@@ -1068,7 +1068,7 @@ exports.grade = async (req, res) => {
         if (lowPerformingQuizzes.length > 0) {
             performanceFeedback = `You are struggling with the following quizzes: ${lowPerformingQuizzes.map((quiz) => {
                 const task = taskNames.find((task) => task.taskId === quiz.taskId && task.type === 'quiz');
-                return task ? `${task.taskName} (Course: ${task.courseId})` : quiz.taskId;
+                return task ? `${task.taskName}` : quiz.taskId;
             }).join(', ')}.`;
         }
         if (lowPerformingTasks.length > 0) {
